@@ -4,6 +4,7 @@ class PokemonPage
 
     def go
         visit "/"
+        find("#cookie-dismisser").click
     end
 
     def search(pkemon_name)
@@ -16,5 +17,11 @@ class PokemonPage
         find("#username").set user
         find("#password").set passwd
         click_button "Sign In"
+    end
 
+    def searchAdvancedRange(range)
+        find(".filter-toggle-span").click
+        find("#minRangeBox").set range
+        click_button "Search"
+    end
 end

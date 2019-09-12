@@ -1,7 +1,7 @@
 Feature: Search Pokemons
 
    How pokemon player
-   Want explorer the Site Pokemon Pokédex
+   I Want explorer the Site Pokemon Pokédex
 
    Background: 
       Given i am on Website Pokemon Pokédex
@@ -20,4 +20,12 @@ Feature: Search Pokemons
 
    Scenario: Login fail
       When Login with user "pkemontest@pkm.com" ans password "pkm@123"
-      Then i see the message "Your username or password is incorrect. You have 4 attempts left before you will be locked out of your account for 15 minutes."
+      Then i see the message "Your username or password is incorrect."
+
+   Scenario: search advanced of the pokemon fail
+      When i search advanced a pokemon fail
+      Then i see the message "No Pokémon Matched Your Search!"
+
+   Scenario: search advanced of the pokemon success
+      When i search advanced a pokemon
+      Then i see the message "Sableye"

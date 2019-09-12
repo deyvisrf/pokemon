@@ -1,5 +1,4 @@
   Given("i am on Website Pokemon Pokédex") do
-    @start = PokemonPage.new
     @start.go  
   end
 
@@ -21,6 +20,7 @@
 
   When("select the option show list order by Z-A") do
     find(".custom-select-menu").click
+    find('.custom-select-menu', text: "Z-A").click   
   end
   
   Then("i see the list") do
@@ -28,5 +28,13 @@
   end
 
   When("Login with user {string} ans password {string}") do |user, passwd|
-    @start.login(user,password)
+    @start.login(user,passwd)
+  end
+
+  When("i search advanced a pokemon fail") do
+    @start.searchAdvancedRange("qqq")
+  end
+
+  When("i search advanced a pokemon") do
+    @start.searchAdvancedRange("300")
   end
