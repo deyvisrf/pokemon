@@ -1,97 +1,63 @@
+# Ruby CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-ruby/ for more details
+#
 version: 2
-
-
 jobs:
-  checkout_code:
+  build:
     docker:
-      - image: circleci/ruby:2.4-node
-    working_directory: ~/google-test-example
-   
+      # specify the version you desire here
+      - image: circleci/ruby:2.4.1-node-browsers
+
+      # Specify service dependencies here if necessary
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/docs/2.0/circleci-images/
+      # - image: circleci/postgres:9.4
+
+    working_directory: ~/repo
+
     steps:
       - checkout
-      - save_cache:
-          key: google-repo-{{ .Environment.CIRCLE_SHA1 }}
-          paths:
-            - ~/google-test-example
 
-  
-  bundle_dependencies:
-    working_directory: ~/google-test-example  
-    docker:
-      - image: circleci/ruby:2.4-node
-    steps:
+      # Download and cache dependencies
       - restore_cache:
           keys:
-            - google-repo-{{ .Environment.CIRCLE_SHA1 }}
-      - restore_cache:
-          keys:
-            - google-bundle-{{ .Branch }}
-      - run: 
-          name: Bundle install
-          command: bundle install --path vendor/bundle
-      - save_cache:
-          key: google-bundle-{{ .Branch }}-{{ epoch }}
-          paths:
-            - ~/google-test-example/vendor/bundle
-      - save_cache:
-          key: google-bundle-{{ .Branch }}
-          paths: 
-            - ~/google-test-example/vendor/bundle
-  
-  code_analyzer:
-    working_directory: ~/google-test-example  
-    docker:
-      - image: circleci/ruby:2.4-node
-    steps:
-      - restore_cache:
-          keys:
-            - google-repo-{{ .Environment.CIRCLE_SHA1 }}
-      - restore_cache:
-          keys:
-            - google-bundle-{{ .Branch }}
-      - run: 
-          name: Bundle install
-          command: bundle install --path vendor/bundle
+            - v1-dependencies-{{ checksum "Gemfile.lock" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
+
       - run:
-          name: Rubocop analyzer
-          command: bundle exec rubocop
+          name: install dependencies
+          command: |
+            bundle install --jobs=4 --retry=3 --path vendor/bundle
 
-  chrome_test:
-    working_directory: ~/google-test-example
-    docker:
-      - image: circleci/ruby:latest-browsers
-    steps:
-      - restore_cache:
-          keys:
-            - google-repo-{{ .Environment.CIRCLE_SHA1 }}
-      - restore_cache:
-          keys:
-            - google-bundle-{{ .Branch }}
-      - run: 
-          name: Bundle install
-          command: bundle install --path vendor/bundle
-      - run: 
-          name: Execute all features scenarios (except @wip tags) on Goole Chrome browser
+      - save_cache:
+          paths:
+            - ./vendor/bundle
+          key: v1-dependencies-{{ checksum "Gemfile.lock" }}
+
+      # Database setup
+      - run: bundle exec rake db:create
+      - run: bundle exec rake db:schema:load
+
+      # run tests!
+      - run:
+          name: run tests
           command: |
             mkdir /tmp/test-results
-            bundle exec cucumber --format junit --out /tmp/test-results/junit.xml
-      - store_test_results:
-          path: /tmp/test-results/junit.xml
-      - store_artifacts:
-          path: /tmp/test-results/junit.xml
+            TEST_FILES="$(circleci tests glob "spec/**/*_spec.rb" | \
+              circleci tests split --split-by=timings)"
 
-workflows:
-  version: 2
-  build_and_test:
-    jobs:
-      - checkout_code
-      - bundle_dependencies:
-          requires: 
-            - checkout_code
-      - code_analyzer:
-          requires:
-            - bundle_dependencies
-      - chrome_test:
-          requires:
-            - bundle_dependencies
-            - code_analyzer
+            bundle exec rspec \
+              --format progress \
+              --format RspecJunitFormatter \
+              --out /tmp/test-results/rspec.xml \
+              --format progress \
+              $TEST_FILES
+
+      # collect reports
+      - store_test_results:
+          path: /tmp/test-results
+      - store_artifacts:
+          path: /tmp/test-results
+          destination: test-results
